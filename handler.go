@@ -199,23 +199,38 @@ func (db *DBHandler) MultiGet(bean interface{}, name string, idList []interface{
 }
 
 func (db *DBHandler) Count(name string, condition *Condition) (int64, error) {
+	if condition == nil {
+		return db.DB.Table(name).Count()
+	}
 	return db.DB.Table(name).Where(condition.Where, condition.Params...).Count()
 }
 
-func (db *DBHandler) Sum(bean interface{}, name string, columnName string) (float64, error) {
-	return db.DB.Table(name).Sum(bean, columnName)
+func (db *DBHandler) Sum(bean interface{}, name string, columnName string, condition *Condition) (float64, error) {
+	if condition == nil {
+		return db.DB.Table(name).Sum(bean, columnName)
+	}
+	return db.DB.Table(name).Where(condition.Where, condition.Params...).Sum(bean, columnName)
 }
 
-func (db *DBHandler) SumInt(bean interface{}, name string, columnName string) (int64, error) {
-	return db.DB.Table(name).SumInt(bean, columnName)
+func (db *DBHandler) SumInt(bean interface{}, name string, columnName string, condition *Condition) (int64, error) {
+	if condition == nil {
+		return db.DB.Table(name).SumInt(bean, columnName)
+	}
+	return db.DB.Table(name).Where(condition.Where, condition.Params...).SumInt(bean, columnName)
 }
 
-func (db *DBHandler) Sums(bean interface{}, name string, columnNames ...string) ([]float64, error) {
-	return db.DB.Table(name).Sums(bean, columnNames...)
+func (db *DBHandler) Sums(bean interface{}, name string, condition *Condition, columnNames ...string) ([]float64, error) {
+	if condition == nil {
+		return db.DB.Table(name).Sums(bean, columnNames...)
+	}
+	return db.DB.Table(name).Where(condition.Where, condition.Params...).Sums(bean, columnNames...)
 }
 
-func (db *DBHandler) SumsInt(bean interface{}, name string, columnNames ...string) ([]int64, error) {
-	return db.DB.Table(name).SumsInt(bean, columnNames...)
+func (db *DBHandler) SumsInt(bean interface{}, name string, condition *Condition, columnNames ...string) ([]int64, error) {
+	if condition == nil {
+		return db.DB.Table(name).SumsInt(bean, columnNames...)
+	}
+	return db.DB.Table(name).Where(condition.Where, condition.Params...).SumsInt(bean, columnNames...)
 }
 
 func (db *DBHandler) Exec(sql string, params ...interface{}) error {
