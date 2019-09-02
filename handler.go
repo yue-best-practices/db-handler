@@ -132,7 +132,28 @@ func (db *DBHandler) GetOne(bean interface{}, name string, field string, value i
 }
 
 func (db *DBHandler) List(bean interface{}, name string, condition *Condition) error {
-	return db.DB.Table(name).Where(condition.Where, condition.Params...).Find(bean)
+	session := db.DB.Table(name)
+	if condition.Where != "" {
+		if condition.Params != nil {
+			session = session.Where(condition.Where, condition.Params...)
+		} else {
+			session = session.Where(condition.Where)
+		}
+	}
+
+	if condition.Asc != nil {
+		session = session.Asc(condition.Asc...)
+	}
+
+	if condition.Desc != nil {
+		session = session.Desc(condition.Desc...)
+	}
+
+	if condition.Limit > 0 {
+		session = session.Limit(condition.Limit, condition.Offset)
+	}
+
+	return session.Find(bean)
 }
 
 func (db *DBHandler) Save(bean interface{}, name string, idName ...string) error {
