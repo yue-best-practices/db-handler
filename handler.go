@@ -99,6 +99,7 @@ func (db *DBHandler) GetOne(bean interface{}, name string, field string, value i
 	if refValue.Kind() != reflect.Ptr || refValue.Elem().Kind() != reflect.Struct {
 		return false, fmt.Errorf("struct pointer expected")
 	}
+	refValue = refValue.Elem()
 	key := fmt.Sprintf("%s|%s|%s|%v", db.dbConf.DbName, name, field, value)
 	//find from redis
 	if db.Redis != nil {
