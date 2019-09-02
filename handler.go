@@ -1,11 +1,13 @@
 package db_handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/go-xorm/xorm"
 	"reflect"
+	"time"
 )
 
 type DBHandler struct {
@@ -57,13 +59,74 @@ func New(dbConf *DbConfig, redisConf *RedisConfig) (*DBHandler, error) {
 
 // find by id
 func (db *DBHandler) Get(bean interface{}, name string, id interface{}) (bool, error) {
-	return db.GetOne(bean, name, "id", id)
+	refValue := reflect.ValueOf(bean)
+	if refValue.Kind() != reflect.Ptr || refValue.Elem().Kind() != reflect.Struct {
+		return false, fmt.Errorf("struct pointer expected")
+	}
+	key := fmt.Sprintf("%s|%s|%v", db.dbConf.DbName, name, id)
+	// find from redis
+	if db.Redis != nil {
+		res, err := db.Redis.Get(key).Result()
+		if err == nil {
+			if res != "" {
+				err = json.Unmarshal([]byte(res), bean)
+				if err == nil {
+					// refresh expire
+					db.Redis.SetNX(key, res, time.Second*time.Duration(db.redisConf.Expire))
+					return true, nil
+				}
+			}
+
+			// del from redis
+			db.Redis.Del(key)
+		}
+	}
+
+	//find from db
+	has, err := db.DB.Table(name).Where("id=?", id).Get(bean)
+	if err == nil && has && db.Redis != nil {
+		// save to redis
+		r, err := json.Marshal(bean)
+		if err == nil {
+			db.Redis.SetNX(key, string(r), time.Second*time.Duration(db.redisConf.Expire))
+		}
+	}
+	return has, err
 }
 
-func (db *DBHandler) GetOne(bean interface{}, name string, field string, value interface{}) (bool, error) {
-	//todo find from redis
+func (db *DBHandler) GetOne(bean interface{}, name string, field string, value interface{}, idName ...string) (bool, error) {
+	refValue := reflect.ValueOf(bean)
+	if refValue.Kind() != reflect.Ptr || refValue.Elem().Kind() != reflect.Struct {
+		return false, fmt.Errorf("struct pointer expected")
+	}
+	key := fmt.Sprintf("%s|%s|%s|%v", db.dbConf.DbName, name, field, value)
+	//find from redis
+	if db.Redis != nil {
+		id, err := db.Redis.Get(key).Result()
+		if err == nil {
+			// 如果有id 走get方法
+			if id != "" {
+				has, err := db.Get(bean, name, id)
+				if err == nil && has {
+					return has, err
+				}
+			}
+			// 如果没有找到id，则删除该key
+			db.Redis.Del(key)
+		}
+	}
+	// find from db
 	has, err := db.DB.Table(name).Where(fmt.Sprintf("%s=?", field), value).Get(bean)
-	//todo save to redis
+	if err == nil && has && db.Redis != nil {
+		//save to redis
+		defaultIdName := "Id"
+		if idName != nil {
+			defaultIdName = idName[0]
+		}
+		camelId := ToCamelString(defaultIdName)
+		idValue := fmt.Sprintf("%v", refValue.FieldByName(camelId))
+		db.Redis.SetNX(key, idValue, time.Second*time.Duration(db.redisConf.Expire))
+	}
 	return has, err
 }
 
@@ -86,28 +149,38 @@ func (db *DBHandler) Save(bean interface{}, name string, idName ...string) error
 	idValue := fmt.Sprintf("%v", value.FieldByName(camelId))
 	var err error
 	if idValue == "0" {
-		// todo insert
+		//insert
 		_, err = db.DB.Table(name).Insert(bean)
 		if err != nil {
 			return err
 		}
 	} else {
-		// todo update
+		//update
 		_, err = db.DB.Table(name).Where(fmt.Sprintf("%s=?", snakeId), idValue).AllCols().Update(bean)
 		if err != nil {
 			return err
 		}
 	}
 	idValue = fmt.Sprintf("%v", value.FieldByName(camelId))
-	//todo save to redis
-	fmt.Printf("===IdValue:%s\n", idValue)
+	//save to redis
+	if db.Redis != nil {
+		key := fmt.Sprintf("%s|%s|%v", db.dbConf.DbName, name, idValue)
+		r, err := json.Marshal(bean)
+		if err == nil {
+			db.Redis.SetNX(key, string(r), time.Second*time.Duration(db.redisConf.Expire))
+		}
+	}
 	return err
 }
 
 // delete by id
 func (db *DBHandler) Del(bean interface{}, name string, id interface{}) error {
-	//todo delete from redis
+	//delete from redis
 	_, err := db.DB.Table(name).Where("id=?", id).Delete(bean)
+	if db.Redis != nil {
+		key := fmt.Sprintf("%s|%s|%v", db.dbConf.DbName, name, id)
+		db.Redis.Del(key)
+	}
 	return err
 }
 
