@@ -188,6 +188,7 @@ func (db *DBHandler) Save(bean interface{}, name string, idName ...string) error
 	if db.Redis != nil {
 		key := fmt.Sprintf("%s|%s|%v", db.dbConf.DbName, name, idValue)
 		r, err := json.Marshal(bean)
+		fmt.Printf("[准备存储Redis]Key:%s,Value:%s\n", key, string(r))
 		if err == nil {
 			db.Redis.SetNX(key, string(r), time.Second*time.Duration(db.redisConf.Expire))
 		}
