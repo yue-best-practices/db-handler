@@ -72,7 +72,7 @@ func (db *DBHandler) Get(bean interface{}, name string, id interface{}) (bool, e
 				err = json.Unmarshal([]byte(res), bean)
 				if err == nil {
 					// refresh expire
-					db.Redis.SetNX(key, res, time.Second*time.Duration(db.redisConf.Expire))
+					db.Redis.Set(key, res, time.Second*time.Duration(db.redisConf.Expire))
 					return true, nil
 				}
 			}
@@ -88,7 +88,7 @@ func (db *DBHandler) Get(bean interface{}, name string, id interface{}) (bool, e
 		// save to redis
 		r, err := json.Marshal(bean)
 		if err == nil {
-			db.Redis.SetNX(key, string(r), time.Second*time.Duration(db.redisConf.Expire))
+			db.Redis.Set(key, string(r), time.Second*time.Duration(db.redisConf.Expire))
 		}
 	}
 	return has, err
@@ -126,7 +126,7 @@ func (db *DBHandler) GetOne(bean interface{}, name string, field string, value i
 		}
 		camelId := ToCamelString(defaultIdName)
 		idValue := fmt.Sprintf("%v", refValue.FieldByName(camelId))
-		db.Redis.SetNX(key, idValue, time.Second*time.Duration(db.redisConf.Expire))
+		db.Redis.Set(key, idValue, time.Second*time.Duration(db.redisConf.Expire))
 	}
 	return has, err
 }
@@ -188,9 +188,8 @@ func (db *DBHandler) Save(bean interface{}, name string, idName ...string) error
 	if db.Redis != nil {
 		key := fmt.Sprintf("%s|%s|%v", db.dbConf.DbName, name, idValue)
 		r, err := json.Marshal(bean)
-		fmt.Printf("[准备存储Redis]Key:%s,Value:%s\n", key, string(r))
 		if err == nil {
-			db.Redis.SetNX(key, string(r), time.Second*time.Duration(db.redisConf.Expire))
+			db.Redis.Set(key, string(r), time.Second*time.Duration(db.redisConf.Expire))
 		}
 	}
 	return err
