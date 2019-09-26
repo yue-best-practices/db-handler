@@ -26,6 +26,12 @@ func createDBConnection(dsn string, showSql bool) (*xorm.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if err = db.Ping(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
 	if showSql {
 		db.ShowSQL(showSql)
 	}
