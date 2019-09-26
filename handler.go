@@ -48,7 +48,7 @@ func New(dbConf *DbConfig, redisConf *RedisConfig) (*DBHandler, error) {
 		return nil, err
 	}
 	var client *redis.Client
-	if redisConf != nil {
+	if redisConf != nil && redisConf.Host != "" {
 		client = redis.NewClient(&redis.Options{
 			Addr:     fmt.Sprintf("%s:%d", redisConf.Host, redisConf.Port),
 			Password: redisConf.Password,
