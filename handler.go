@@ -54,10 +54,6 @@ func New(dbConf *DbConfig, redisConf *RedisConfig) (*DBHandler, error) {
 	if errs != nil {
 		goto Error
 	}
-	if errs = db.Ping(); errs != nil {
-		goto Error
-	}
-
 	if redisConf != nil && redisConf.Host != "" {
 		client = redis.NewClient(&redis.Options{
 			Addr:     fmt.Sprintf("%s:%d", redisConf.Host, redisConf.Port),
