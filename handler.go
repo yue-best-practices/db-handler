@@ -47,6 +47,10 @@ func New(dbConf *DbConfig, redisConf *RedisConfig) (*DBHandler, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err = db.Ping(); err != nil {
+		return nil, err
+	}
+
 	var client *redis.Client
 	if redisConf != nil && redisConf.Host != "" {
 		client = redis.NewClient(&redis.Options{
