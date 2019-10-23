@@ -39,32 +39,40 @@ func createDBConnection(dsn string, showSql bool) (*xorm.Engine, error) {
 }
 
 func New(dbConf *DbConfig, redisConf *RedisConfig) (*DBHandler, error) {
+	var errs error
+	var client *redis.Client
+	var dsn string
+	var db *xorm.Engine
+	var handler *DBHandler
+
 	if dbConf == nil {
-		return nil, fmt.Errorf("dataBase config is nil")
+		errs = fmt.Errorf("dataBase config is nil")
+		goto Error
 	}
-	dsn := generateDSN(dbConf)
-	db, err := createDBConnection(dsn, dbConf.ShowLog)
-	if err != nil {
-		return nil, err
+	dsn = generateDSN(dbConf)
+	db, errs = createDBConnection(dsn, dbConf.ShowLog)
+	if errs != nil {
+		goto Error
 	}
-	if err = db.Ping(); err != nil {
-		return nil, err
+	if errs = db.Ping(); errs != nil {
+		goto Error
 	}
 
-	var client *redis.Client
 	if redisConf != nil && redisConf.Host != "" {
 		client = redis.NewClient(&redis.Options{
 			Addr:     fmt.Sprintf("%s:%d", redisConf.Host, redisConf.Port),
 			Password: redisConf.Password,
 			DB:       redisConf.DB,
 		})
-		_, err = client.Ping().Result()
-		if err != nil {
-			return nil, err
+		if _, errs = client.Ping().Result(); errs != nil {
+			goto Error
 		}
 	}
-	handler := &DBHandler{DB: db, dbConf: dbConf, Redis: client, redisConf: redisConf}
+	handler = &DBHandler{DB: db, dbConf: dbConf, Redis: client, redisConf: redisConf}
 	return handler, nil
+
+Error:
+	return nil, errs
 }
 
 // find by id
